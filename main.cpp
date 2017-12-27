@@ -2240,7 +2240,7 @@ int main()
 
 	dirc.Open( directory );	//Default
 
-	dirc.First();
+//	dirc.First();
 	while( dirc.Valid() ){
 
 		if( !dirc.IsDir() ){
@@ -2249,8 +2249,9 @@ int main()
 			dirc.Get( filename );
 
 			std::cout<<"File: "<<filename<<std::endl;
-
-			parse_pokemon_fsys_file( directory + "/" + filename, fout );
+			
+			if (!dirc.IsHidden())
+				parse_pokemon_fsys_file( directory + "/" + filename, fout );
 		}
 
 		dirc.Next();

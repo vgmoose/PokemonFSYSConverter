@@ -32,18 +32,10 @@ using std::string;
 	#define WIN32_EXTRA_LEAN_AND_MEAN
 	#include <windows.h>	//gyahhh...
 	#include <winbase.h>	//Requires Kernel32.dll
-#endif
-#ifdef UNIX		//*NIX POSIX ?
-
-	#error "*NIX Not supported yet"
-#endif
-#ifdef DARWIN	//OS X
-
-	#error "OS X Not supported yet"
-#endif
-#ifdef MAC	//old MAC
-
-	#error "MAC Not supported yet"
+#else
+	#include <dirent.h>
+	#include <fstream>
+	#include <iostream>
 #endif
 
 
@@ -67,7 +59,6 @@ class Dir{
 
 		void Close();//!< Closes the directory.
 		bool Open( const std::string  & D );	//!< Opens a specified directory, returns false if failure
-		bool First();	//!Start at the first directory entry, again.
 		bool Next();	//!< Goes to the next filename, returns false if end of directory
 
 		bool IsDir() const;	//!< Returns true if this current file is ANOTHER directory
@@ -81,25 +72,16 @@ class Dir{
 	private:
 
 		bool m_curr_valid;	//!< True if this directory is valid
+	
+		std::string m_curr_directory;	//!< The current directory path (formatted however you need it)
 
 		#ifdef WIN32	//Microsoft windows
-
-			std::string m_curr_directory;	//!< The current directory path (formatted however you need it)
 			WIN32_FIND_DATA msw_finddata;
 			HANDLE msw_handle;
 			DWORD msw_attr;
-		#endif
-		#ifdef UNIX		//Ideally, any POSIX linux style operating system
-			//*NIX POSIX ?
-		#endif
-		#ifdef DARWIN	//IS the new Leaopard not backwards compliant for directories?
-			//OS X
-		#endif
-		#ifdef MAC		//Old way to enumerate on a maccy
-			//old MAC
-			//FSIterator
-			//err = FSOpenIterator(&dirRef, kFSIterateFlat, &m_iterator);
-			//FSCloseIterator( m_iterator ) ;
+		#else
+			DIR* dirp;		// directory entry pointer
+			dirent* handle;		// currently opened file
 		#endif
 };
 };

@@ -16,21 +16,17 @@ Dir::Dir(){	//!< Nothin'
 		//msw_finddata = INVALID_HANDLE_VALUE;
 		msw_handle = INVALID_HANDLE_VALUE;
 		msw_attr = 0;
+	#else
+		handle = NULL;
 	#endif
 }
 Dir::Dir( const std::string  & D ){	//!< Starts by opening a directory
 
-	#ifdef WIN32
-
-		Open( D );
-	#endif
+	Open( D );
 }
 Dir::~Dir(){	//!< Starts by opening a directory
 
-	#ifdef WIN32
-
-		Close();
-	#endif
+	Close();
 }
 void Dir::Close(){//!< Closes the directory.
 
@@ -45,19 +41,22 @@ void Dir::Close(){//!< Closes the directory.
 		}
 
 		msw_handle = INVALID_HANDLE_VALUE;
+	#else
+		if (handle != NULL)
+			closedir(dirp);
 	#endif
 	m_curr_valid = false;
 }
 
 bool Dir::Open( const std::string  & D ){	//!< Opens a specified directory, returns false if failure
+	
+	m_curr_valid = false;
 
 	#ifdef WIN32
 		//
 		//Close any open directory first!
 		//
 		msw_handle = INVALID_HANDLE_VALUE;
-		m_curr_valid = false;
-
 		//
 		//Format directory string as needed
 		//
@@ -82,48 +81,53 @@ bool Dir::Open( const std::string  & D ){	//!< Opens a specified directory, retu
 				//wxLogSysError(err, _("Can not enumerate files in directory '%s'"),m_dirname.c_str());
 			}
 		}else{
-
 			m_curr_valid = true;
 		}
-	#endif
-	return m_curr_valid;
-}
+	#else
+		dirp = NULL;
 
-bool Dir::First(){	//!Start at the first directory entry, again.
-
-	#ifdef WIN32
-
-		if( m_curr_valid ){	// Must be valid to do a first (Open was called)
-
-			m_curr_valid = false;
-			msw_handle = ::FindFirstFile( (m_curr_directory+"*.*").c_str() , &msw_finddata);
-
-			if( msw_handle == INVALID_HANDLE_VALUE ){
-
-				DWORD err = ::GetLastError();
-
-				if ( (err != ERROR_FILE_NOT_FOUND) && (err != ERROR_NO_MORE_FILES) ){
-
-					//wxLogSysError(err, _("Can not enumerate files in directory '%s'"),m_dirname.c_str());
+		// open the directory
+		dirp = opendir(D.c_str());
+	
+		// opened successfully
+		if (dirp)
+		{						
+			dirent* dp;
+			// find the first file
+			while ((dp = readdir(dirp)) != NULL)
+			{
+				if (dp->d_type == DT_REG)
+				{
+					handle = dp;
+					m_curr_valid = true;
+					break;
 				}
-			}else{
-
-				m_curr_valid = true;
 			}
 		}
 	#endif
-
+	
 	return m_curr_valid;
 }
 
 bool Dir::Next(){	//!< Goes to the next filename, returns false if end of directory
-
-	#ifdef WIN32
-		if( m_curr_valid ){	// Must be valid to do a first (Open was called)
-
+	if( m_curr_valid ){	// Must be valid to do a first (Open was called)
+		#ifdef WIN32
 			m_curr_valid = ( ::FindNextFile(msw_handle, &msw_finddata) != 0 );
-		}
-	#endif
+		#else
+			dirent* dp;
+			// find the first file
+			m_curr_valid = false;
+			while ((dp = readdir(dirp)) != NULL)
+			{
+				if (dp->d_type == DT_REG)
+				{
+					handle = dp;
+					m_curr_valid = true;
+					break;
+				}
+			}
+		#endif
+	}
 
 	return m_curr_valid;
 }
@@ -132,10 +136,8 @@ bool Dir::GetDir( std::string  & S ) const {//!< Gets the current directory name
 
 	if( m_curr_valid ){
 
-		#ifdef WIN32
+		S = m_curr_directory;
 
-			S = m_curr_directory;
-		#endif
 	}
 	return m_curr_valid;
 }
@@ -145,8 +147,9 @@ bool Dir::Get( std::string  & S ) const {//!< Gets the current filename (sets it
 	if( m_curr_valid ){
 
 		#ifdef WIN32
-
 			S = msw_finddata.cFileName;
+		#else
+			S = handle->d_name;
 		#endif
 	}
 	return m_curr_valid;
@@ -157,8 +160,9 @@ bool Dir::IsDir() const{	//!< Returns true if this current file is ANOTHER direc
 	if( m_curr_valid ){
 
 		#ifdef WIN32
-
 			return ( (msw_finddata.dwFileAttributes) & FILE_ATTRIBUTE_DIRECTORY) != 0;
+		#else
+			return handle->d_type == DT_DIR;
 		#endif
 	}
 
@@ -172,6 +176,9 @@ bool Dir::IsHidden() const{//!< Returns true if this current file is a hidden fi
 		#ifdef WIN32
 
 			return ( (msw_finddata.dwFileAttributes) & (FILE_ATTRIBUTE_HIDDEN)) != 0;
+		#else
+			// dot files are hidden
+			return handle->d_name[0] == '.';
 		#endif
 	}
 
@@ -226,6 +233,8 @@ bool Dir::IsNormal() const{//!< Returns true if this current file is a normal fi
 			//FILE_ATTRIBUTE_VALID_FLAGS
 
 			return ( (msw_finddata.dwFileAttributes) & (FILE_ATTRIBUTE_NORMAL)) != 0;
+		#else
+			return handle->d_type == DT_REG;
 		#endif
 	}
 
